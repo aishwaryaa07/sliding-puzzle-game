@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sliding Puzzle Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: white;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .game-title {
+            font-size: 2.5em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .game-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+            min-width: 80px;
+            text-align: center;
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .puzzle-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            aspect-ratio: 1;
+            position: relative;
+        }
+
+        .puzzle-tile {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            user-select: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .puzzle-tile:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .puzzle-tile:active {
+            transform: translateY(0) scale(0.95);
+        }
+
+        .puzzle-tile.sliding {
+            transition: transform 0.2s ease-out;
+        }
+
+        .puzzle-tile::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .puzzle-tile:hover::before {
+            left: 100%;
+        }
+
+        .empty-tile {
+            background: transparent !important;
+            cursor: default !important;
+            box-shadow: none !important;
+        }
+
+        .empty-tile:hover {
+            transform: none !important;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            font-size: 1em;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.secondary {
+            background: linear-gradient(45deg, #74b9ff, #0984e3);
+        }
+
+        .btn.success {
+            background: linear-gradient(45deg, #00b894, #00cec9);
+        }
+
+        .victory-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .victory-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .victory-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+        }
+
+        .victory-modal.show .victory-content {
+            transform: scale(1);
+        }
+
+        .victory-title {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #feca57;
+        }
+
+        .victory-stats {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .difficulty-selector {
+            margin-bottom: 20px;
+        }
+
+        .difficulty-selector label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .difficulty-selector select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 1em;
+        }
+
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 20px;
+            }
+
+            .game-title {
+                font-size: 2em;
+            }
+
+            .puzzle-tile {
+                font-size: 1.2em;
+            }
+
+            .game-stats {
+                justify-content: center;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 200px;
+            }
+        }
+
+        .pulse {
+            animation: pulse 0.5s ease-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .shake {
+            animation: shake 0.5s ease-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1 class="game-title">Sliding Puzzle</h1>
+            
+            <div class="difficulty-selector">
+                <label for="difficulty">Difficulty:</label>
+                <select id="difficulty">
+                    <option value="3">Easy (3x3)</option>
+                    <option value="4" selected>Normal (4x4)</option>
+                    <option value="5">Hard (5x5)</option>
+                </select>
+            </div>
+
+            <div class="game-stats">
+                <div class="stat-item">
+                    <div class="stat-label">Time</div>
+                    <div class="stat-value" id="timer">00:00</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Moves</div>
+                    <div class="stat-value" id="moves">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Score</div>
+                    <div class="stat-value" id="score">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="puzzle-grid" id="puzzleGrid"></div>
+
+        <div class="controls">
+            <button class="btn" id="newGameBtn">New Game</button>
+            <button class="btn secondary" id="shuffleBtn">Shuffle</button>
+            <button class="btn secondary" id="hintBtn">Hint</button>
+        </div>
+    </div>
+
+    <div class="victory-modal" id="victoryModal">
+        <div class="victory-content">
+            <h2 class="victory-title">🎉 Congratulations! 🎉</h2>
+            <div class="victory-stats" id="victoryStats"></div>
+            <button class="btn success" id="playAgainBtn">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        class SlidingPuzzleGame {
+            constructor() {
+                this.gridSize = 4;
+                this.tiles = [];
+                this.emptyPos = { row: 0, col: 0 };
+                this.moves = 0;
+                this.score = 0;
+                this.timer = 0;
+                this.timerInterval = null;
+                this.isGameActive = false;
+                this.gameStarted = false;
+
+                this.initializeElements();
+                this.initializeGame();
+                this.bindEvents();
+                this.createSoundEffects();
+            }
+
+            initializeElements() {
+                this.puzzleGrid = document.getElementById('puzzleGrid');
+                this.timerElement = document.getElementById('timer');
+                this.movesElement = document.getElementById('moves');
+                this.scoreElement = document.getElementById('score');
+                this.newGameBtn = document.getElementById('newGameBtn');
+                this.shuffleBtn = document.getElementById('shuffleBtn');
+                this.hintBtn = document.getElementById('hintBtn');
+                this.difficultySelect = document.getElementById('difficulty');
+                this.victoryModal = document.getElementById('victoryModal');
+                this.victoryStats = document.getElementById('victoryStats');
+                this.playAgainBtn = document.getElementById('playAgainBtn');
+            }
+
+            createSoundEffects() {
+                // Create audio context for sound effects
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                this.sounds = {
+                    move: () => this.playTone(400, 0.1, 'sine'),
+                    victory: () => this.playVictorySound(),
+                    shuffle: () => this.playTone(200, 0.3, 'square'),
+                    invalid: () => this.playTone(150, 0.2, 'sawtooth')
+                };
+            }
+
+            playTone(frequency, duration, type = 'sine') {
+                try {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.value = frequency;
+                    oscillator.type = type;
+                    
+                    gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+                    
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + duration);
+                } catch (e) {
+                    // Silently handle audio context errors
+                }
+            }
+
+            playVictorySound() {
+                const notes = [523, 659, 784, 1047]; // C, E, G, C (octave)
+                notes.forEach((note, index) => {
+                    setTimeout(() => this.playTone(note, 0.3, 'sine'), index * 150);
+                });
+            }
+
+            initializeGame() {
+                this.createGrid();
+                this.resetGame();
+            }
+
+            createGrid() {
+                this.puzzleGrid.style.gridTemplateColumns = `repeat(${this.gridSize}, 1fr)`;
+                this.puzzleGrid.innerHTML = '';
+                
+                // Initialize tiles array
+                this.tiles = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(0));
+                
+                // Create tile elements
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const tileElement = document.createElement('div');
+                        tileElement.className = 'puzzle-tile';
+                        tileElement.dataset.row = row;
+                        tileElement.dataset.col = col;
+                        this.puzzleGrid.appendChild(tileElement);
+                    }
+                }
+                
+                this.updateGridDisplay();
+            }
+
+            resetGame() {
+                this.moves = 0;
+                this.score = 0;
+                this.timer = 0;
+                this.isGameActive = false;
+                this.gameStarted = false;
+                
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+                
+                // Initialize solved state
+                let number = 1;
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        if (row === this.gridSize - 1 && col === this.gridSize - 1) {
+                            this.tiles[row][col] = 0; // Empty space
+                            this.emptyPos = { row, col };
+                        } else {
+                            this.tiles[row][col] = number++;
+                        }
+                    }
+                }
+                
+                this.updateDisplay();
+                this.updateGridDisplay();
+            }
+
+            shufflePuzzle() {
+                // Perform random valid moves to ensure solvability
+                const moves = this.gridSize * this.gridSize * 100;
+                
+                for (let i = 0; i < moves; i++) {
+                    const validMoves = this.getValidMoves();
+                    if (validMoves.length > 0) {
+                        const randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+                        this.moveTile(randomMove.row, randomMove.col, false);
+                    }
+                }
+                
+                this.moves = 0;
+                this.score = 0;
+                this.updateDisplay();
+                this.sounds.shuffle();
+            }
+
+            getValidMoves() {
+                const moves = [];
+                const { row, col } = this.emptyPos;
+                
+                // Check all four directions
+                const directions = [
+                    { row: row - 1, col }, // Up
+                    { row: row + 1, col }, // Down
+                    { row, col: col - 1 }, // Left
+                    { row, col: col + 1 }  // Right
+                ];
+                
+                directions.forEach(pos => {
+                    if (pos.row >= 0 && pos.row < this.gridSize && pos.col >= 0 && pos.col < this.gridSize) {
+                        moves.push(pos);
+                    }
+                });
+                
+                return moves;
+            }
+
+            moveTile(row, col, countMove = true) {
+                const { row: emptyRow, col: emptyCol } = this.emptyPos;
+                
+                // Check if the tile is adjacent to empty space
+                const isAdjacent = (Math.abs(row - emptyRow) === 1 && col === emptyCol) ||
+                                 (Math.abs(col - emptyCol) === 1 && row === emptyRow);
+                
+                if (!isAdjacent) {
+                    if (countMove) this.sounds.invalid();
+                    return false;
+                }
+                
+                // Swap tile with empty space
+                this.tiles[emptyRow][emptyCol] = this.tiles[row][col];
+                this.tiles[row][col] = 0;
+                this.emptyPos = { row, col };
+                
+                if (countMove) {
+                    this.moves++;
+                    this.score += Math.max(100 - this.moves, 10);
+                    this.sounds.move();
+                    
+                    if (!this.gameStarted) {
+                        this.startTimer();
+                        this.gameStarted = true;
+                        this.isGameActive = true;
+                    }
+                }
+                
+                this.updateDisplay();
+                this.updateGridDisplay();
+                
+                if (countMove && this.checkWin()) {
+                    this.handleVictory();
+                }
+                
+                return true;
+            }
+
+            checkWin() {
+                let expected = 1;
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        if (row === this.gridSize - 1 && col === this.gridSize - 1) {
+                            return this.tiles[row][col] === 0;
+                        }
+                        if (this.tiles[row][col] !== expected++) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            handleVictory() {
+                this.isGameActive = false;
+                clearInterval(this.timerInterval);
+                
+                // Calculate bonus score
+                const timeBonuse = Math.max(1000 - this.timer * 2, 100);
+                const moveBonus = Math.max(500 - this.moves * 5, 50);
+                this.score += timeBonuse + moveBonus;
+                
+                this.sounds.victory();
+                
+                // Show victory modal
+                this.victoryStats.innerHTML = `
+                    <div>Time: ${this.formatTime(this.timer)}</div>
+                    <div>Moves: ${this.moves}</div>
+                    <div>Final Score: ${this.score}</div>
+                `;
+                
+                setTimeout(() => {
+                    this.victoryModal.classList.add('show');
+                }, 500);
+            }
+
+            startTimer() {
+                this.timerInterval = setInterval(() => {
+                    this.timer++;
+                    this.updateDisplay();
+                }, 1000);
+            }
+
+            updateDisplay() {
+                this.timerElement.textContent = this.formatTime(this.timer);
+                this.movesElement.textContent = this.moves;
+                this.scoreElement.textContent = this.score;
+            }
+
+            updateGridDisplay() {
+                const tileElements = this.puzzleGrid.children;
+                let index = 0;
+                
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const tileElement = tileElements[index++];
+                        const value = this.tiles[row][col];
+                        
+                        if (value === 0) {
+                            tileElement.textContent = '';
+                            tileElement.className = 'puzzle-tile empty-tile';
+                        } else {
+                            tileElement.textContent = value;
+                            tileElement.className = 'puzzle-tile';
+                        }
+                    }
+                }
+            }
+
+            formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            showHint() {
+                // Find a tile that's not in the correct position
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const currentValue = this.tiles[row][col];
+                        const expectedValue = row * this.gridSize + col + 1;
+                        
+                        if (currentValue !== 0 && currentValue !== expectedValue) {
+                            // Check if this tile can move
+                            const canMove = this.getValidMoves().some(move => 
+                                move.row === row && move.col === col
+                            );
+                            
+                            if (canMove) {
+                                const tileElement = this.puzzleGrid.children[row * this.gridSize + col];
+                                tileElement.classList.add('pulse');
+                                setTimeout(() => tileElement.classList.remove('pulse'), 500);
+                                return;
+                            }
+                        }
+                    }
+                }
+                
+                // If no moveable misplaced tile found, highlight any valid move
+                const validMoves = this.getValidMoves();
+                if (validMoves.length > 0) {
+                    const randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+                    const tileElement = this.puzzleGrid.children[randomMove.row * this.gridSize + randomMove.col];
+                    tileElement.classList.add('pulse');
+                    setTimeout(() => tileElement.classList.remove('pulse'), 500);
+                }
+            }
+
+            bindEvents() {
+                // Tile click events
+                this.puzzleGrid.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('puzzle-tile') || !this.isGameActive && this.gameStarted) return;
+                    
+                    const row = parseInt(e.target.dataset.row);
+                    const col = parseInt(e.target.dataset.col);
+                    
+                    if (!this.moveTile(row, col)) {
+                        e.target.classList.add('shake');
+                        setTimeout(() => e.target.classList.remove('shake'), 500);
+                    }
+                });
+
+                // Control buttons
+                this.newGameBtn.addEventListener('click', () => {
+                    this.resetGame();
+                    this.shufflePuzzle();
+                });
+
+                this.shuffleBtn.addEventListener('click', () => {
+                    if (!this.isGameActive) {
+                        this.shufflePuzzle();
+                    }
+                });
+
+                this.hintBtn.addEventListener('click', () => {
+                    if (this.isGameActive) {
+                        this.showHint();
+                    }
+                });
+
+                // Difficulty change
+                this.difficultySelect.addEventListener('change', (e) => {
+                    this.gridSize = parseInt(e.target.value);
+                    this.createGrid();
+                    this.resetGame();
+                });
+
+                // Victory modal
+                this.playAgainBtn.addEventListener('click', () => {
+                    this.victoryModal.classList.remove('show');
+                    this.resetGame();
+                    this.shufflePuzzle();
+                });
+
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    if (!this.isGameActive) return;
+                    
+                    const { row, col } = this.emptyPos;
+                    let targetRow = row, targetCol = col;
+                    
+                    switch(e.key) {
+                        case 'ArrowUp':
+                            targetRow = row + 1;
+                            break;
+                        case 'ArrowDown':
+                            targetRow = row - 1;
+                            break;
+                        case 'ArrowLeft':
+                            targetCol = col + 1;
+                            break;
+                        case 'ArrowRight':
+                            targetCol = col - 1;
+                            break;
+                        default:
+                            return;
+                    }
+                    
+                    e.preventDefault();
+                    if (targetRow >= 0 && targetRow < this.gridSize && targetCol >= 0 && targetCol < this.gridSize) {
+                        this.moveTile(targetRow, targetCol);
+                    }
+                });
+
+                // Click outside modal to close
+                this.victoryModal.addEventListener('click', (e) => {
+                    if (e.target === this.victoryModal) {
+                        this.victoryModal.classList.remove('show');
+                    }
+                });
+            }
+        }
+
+        // Initialize game when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.game = new SlidingPuzzleGame();
+        });
+    </script>
+</body>
+</html>
